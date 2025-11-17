@@ -1,4 +1,5 @@
 import argparse
+from typing import Optional
 
 import librosa
 import numpy as np
@@ -97,18 +98,21 @@ def rms(x: np.ndarray) -> float:
     return np.sqrt(np.mean(x**2))
 
 
-def mix(signal: np.ndarray, noise: np.ndarray, snr_db: float = 20.0) -> np.ndarray:
+def mix(
+    signal: np.ndarray, noise: np.ndarray, snr_db: float = 20.0
+) -> tuple[np.ndarray, Optional[np.ndarray]]:
     signal_rms = rms(signal)
     noise_rms = rms(noise)
     if noise_rms == 0:
-        return signal
+        return signal, None
     target_noise_rms = signal_rms / (10 ** (snr_db / 20))
     scaled_noise = noise * (target_noise_rms / noise_rms)
     out = signal + scaled_noise
     max_val = np.max(np.abs(out))
     if max_val > 1:
         out = out / max_val
-    return out
+        scaled_noise = scaled_noise / max_val
+    return out, scaled_noise
 
 
 def main() -> None:
@@ -117,6 +121,7 @@ def main() -> None:
     )
     parser.add_argument("--input", required=True, help="Input WAV file.")
     parser.add_argument("--out", required=True, help="Output noisy WAV file.")
+    parser.add_argument("--noise-out", help="Optional file to save generated noise to.")
     parser.add_argument("--add-sine", nargs=2, action="append", metavar=("FREQ", "AMP"))
     parser.add_argument("--add-multisine", nargs=2, metavar=("FREQS", "AMPS"))
     parser.add_argument("--add-wind", action="store_true")
@@ -158,7 +163,9 @@ def main() -> None:
         noise_total += n
         print(f"Added Gaussian noise (amp={args.add_gauss})")
 
-    output: np.ndarray = mix(signal, noise_total, snr_db=args.snr_db)
+    output, noise = mix(signal, noise_total, snr_db=args.snr_db)
+    if args.noise_out is not None and noise is not None:
+        sf.write(args.noise_out, noise, sr)
     sf.write(args.out, output, sr)
     print(f"Saved noisy audio to: {args.out}")
 
