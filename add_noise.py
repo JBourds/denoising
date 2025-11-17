@@ -1,10 +1,21 @@
 import argparse
+import os
 from typing import Optional
 
 import librosa
 import numpy as np
 import soundfile as sf
 from scipy.signal import butter, sosfilt
+
+DB = "noisedb"
+
+
+def sample_wav(n: int, filepath: str) -> np.ndarray:
+    audio, _ = librosa.load(filepath, sr=None, mono=True)
+    y = audio.copy()
+    while len(audio) < n:
+        y = np.concatenate((y, audio), axis=0)
+    return y[:n]
 
 
 def sine_noise(
@@ -127,6 +138,8 @@ def main() -> None:
     parser.add_argument("--add-wind", action="store_true")
     parser.add_argument("--add-ambulance", action="store_true")
     parser.add_argument("--add-gauss", action="store_true")
+    parser.add_argument("--add-birds", action="store_true")
+    parser.add_argument("--add-traffic", action="store_true")
     parser.add_argument("--snr-db", type=float, default=20.0)
     args = parser.parse_args()
 
@@ -139,29 +152,33 @@ def main() -> None:
             n = sine_noise(length, sr, float(freq), float(amp))
             noise_total += n
             print(f"Added sine: {freq} Hz at amplitude {amp}")
-
     if args.add_multisine:
         freqs = list(map(float, args.add_multisine[0].split(",")))
         amps = list(map(float, args.add_multisine[1].split(",")))
         n = multi_sine_noise(length, sr, freqs, amps)
         noise_total += n
         print(f"Added multi-sine: {freqs} with amps {amps}")
-
     if args.add_wind:
         wind = wind_noise(length, sr, amp=args.add_wind, cutoff=1500)
         wind = apply_gusts(wind, sr)
         noise_total += wind
-        print(f"Added wind noise (amp={args.add_wind})")
-
+        print("Added wind noise")
     if args.add_ambulance:
         n = ambulance_siren(length, sr, amp=args.add_ambulance)
         noise_total += n
-        print(f"Added ambulance siren (amp={args.add_ambulance})")
-
+        print("Added ambulance siren")
     if args.add_gauss:
         n = gaussian_noise(length, sr, amp=args.add_gauss)
         noise_total += n
-        print(f"Added Gaussian noise (amp={args.add_gauss})")
+        print("Added Gaussian noise")
+    if args.add_birds:
+        n = sample_wav(len(signal), os.path.join(DB, "birds.wav"))
+        noise_total += n
+        print("Added bird noise")
+    if args.add_traffic:
+        n = sample_wav(len(signal), os.path.join(DB, "traffic.wav"))
+        noise_total += n
+        print("Added traffic noise")
 
     output, noise = mix(signal, noise_total, snr_db=args.snr_db)
     if args.noise_out is not None and noise is not None:
