@@ -38,12 +38,16 @@ def main():
     parser.add_argument(
         "--signal", required=True, help="Path to signal + noise WAV file."
     )
-    parser.add_argument("--out", required=True, help="Path to save denoised WAV file.")
     parser.add_argument(
         "--alpha", type=float, default=1.0, help="Spectral subtraction scaling factor."
     )
     parser.add_argument(
         "--upscale", type=float, default=1.0, help="Output amplitude scaling."
+    )
+    parser.add_argument(
+        "--out",
+        default="denoised.wav",
+        help="Path to save denoised WAV file.",
     )
     parser.add_argument(
         "--plot",
