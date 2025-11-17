@@ -119,9 +119,10 @@ def main() -> None:
     parser.add_argument("--out", required=True, help="Output noisy WAV file.")
     parser.add_argument("--add-sine", nargs=2, action="append", metavar=("FREQ", "AMP"))
     parser.add_argument("--add-multisine", nargs=2, metavar=("FREQS", "AMPS"))
-    parser.add_argument("--add-wind", type=float)
-    parser.add_argument("--add-ambulance", type=float)
-    parser.add_argument("--add-gauss", type=float)
+    parser.add_argument("--add-wind", action="store_true")
+    parser.add_argument("--add-ambulance", action="store_true")
+    parser.add_argument("--add-gauss", action="store_true")
+    parser.add_argument("--snr-db", type=float, default=20.0)
     args = parser.parse_args()
 
     signal, sr = librosa.load(args.input, sr=None, mono=True)
@@ -157,7 +158,7 @@ def main() -> None:
         noise_total += n
         print(f"Added Gaussian noise (amp={args.add_gauss})")
 
-    output: np.ndarray = mix(signal, noise_total)
+    output: np.ndarray = mix(signal, noise_total, snr_db=args.snr_db)
     sf.write(args.out, output, sr)
     print(f"Saved noisy audio to: {args.out}")
 
