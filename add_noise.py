@@ -7,7 +7,11 @@ import numpy as np
 import soundfile as sf
 from scipy.signal import butter, sosfilt
 
+ROOT = os.path.dirname(os.path.realpath(__file__))
 DB = "noisedb"
+NOISES = [
+    "-".join(file.strip(".wav").split()) for file in os.listdir(os.path.join(ROOT, DB))
+]
 
 
 def sample_wav(n: int, filepath: str) -> np.ndarray:
@@ -138,9 +142,9 @@ def main() -> None:
     parser.add_argument("--add-wind", action="store_true")
     parser.add_argument("--add-ambulance", action="store_true")
     parser.add_argument("--add-gauss", action="store_true")
-    parser.add_argument("--add-birds", action="store_true")
-    parser.add_argument("--add-traffic", action="store_true")
     parser.add_argument("--snr-db", type=float, default=20.0)
+    for noise in NOISES:
+        parser.add_argument(f"--add-{noise}", action="store_true")
     args = parser.parse_args()
 
     signal, sr = librosa.load(args.input, sr=None, mono=True)
@@ -171,14 +175,11 @@ def main() -> None:
         n = gaussian_noise(length, sr, amp=args.add_gauss)
         noise_total += n
         print("Added Gaussian noise")
-    if args.add_birds:
-        n = sample_wav(len(signal), os.path.join(DB, "birds.wav"))
-        noise_total += n
-        print("Added bird noise")
-    if args.add_traffic:
-        n = sample_wav(len(signal), os.path.join(DB, "traffic.wav"))
-        noise_total += n
-        print("Added traffic noise")
+    for noise in NOISES:
+        if args.__dict__[f"add_{noise}"]:
+            n = sample_wav(len(signal), os.path.join(DB, f"{noise}.wav"))
+            noise_total += n
+            print(f"Added {noise} noise")
 
     output, noise = mix(signal, noise_total, snr_db=args.snr_db)
     if args.noise_out is not None and noise is not None:
